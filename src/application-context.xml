@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/rabbit
+       http://www.springframework.org/schema/rabbit/spring-rabbit-1.7.xsd">
+
+    <context:component-scan base-package="logDemo"/>
+
+    <bean id="messageController" class="logDemo.App" autowire="byName"/>
+
+    <rabbit:connection-factory id="connectionFactory" host="172.25.3.128"
+                                                      port="5672"
+                                                      username="hackathon"
+                                                      password="hack"
+                                                      virtual-host="hackathon"/>
+
+    <bean id="rabbitListenerContainerFactory" class="org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory">
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <property name="concurrentConsumers" value="1"/>
+        <property name="maxConcurrentConsumers" value="1"/>
+    </bean>
+
+    <rabbit:template id="amqpTemplate" connection-factory="connectionFactory"
+                     exchange="roger-rabbit" queue="roger.meter" routing-key="roger-rabbit.*"/>
+
+    <rabbit:admin connection-factory="connectionFactory" />
+
+    <rabbit:queue name="roger.meter" />
+
+    <rabbit:topic-exchange name="roger-rabbit">
+        <rabbit:bindings>
+            <rabbit:binding pattern="roger-rabbit.*" queue="roger.meter"/>
+        </rabbit:bindings>
+    </rabbit:topic-exchange>
+
+    <rabbit:template id="responseTemplate" connection-factory="connectionFactory"
+                     exchange="roger-rabbit-logs" queue="roger.logs" routing-key="roger-rabbit-logs.*"/>
+
+    <rabbit:queue name="roger.logs" />
+
+    <rabbit:topic-exchange name="roger-rabbit-logs">
+        <rabbit:bindings>
+            <rabbit:binding pattern="roger-rabbit-logs.*" queue="roger.logs"/>
+        </rabbit:bindings>
+    </rabbit:topic-exchange>
+
+    <rabbit:listener-container connection-factory="connectionFactory" concurrency="1" max-concurrency="1">
+        <rabbit:listener ref="listener" method="onMessage" queue-names="roger.meter" />
+    </rabbit:listener-container>
+
+    <bean id="listener" class="logDemo.AMQPMessageListener"/>
+
+</beans>
